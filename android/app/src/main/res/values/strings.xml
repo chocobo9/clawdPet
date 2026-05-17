@@ -16,4 +16,20 @@
     <string name="notification_title">ClawdPet is watching</string>
     <string name="notification_text">Dashboard active</string>
     <string name="long_press_back_hint">Long-press back to open settings</string>
+
+    <string name="section_notifications">Notifications</string>
+    <string name="sound_enabled_label">Enable sounds</string>
+    <string name="sound_permission_label">Permission request sound</string>
+    <string name="sound_finished_label">Task finished sound</string>
+    <string name="sound_default">System default</string>
+    <string name="vibrate_intensity_label">Vibration intensity</string>
+    <string-array name="vibrate_options">
+        <item>Off</item>
+        <item>Light</item>
+        <item>Medium</item>
+        <item>Strong</item>
+    </string-array>
+    <string name="section_startup">Startup</string>
+    <string name="auto_start_label">Launch on boot</string>
+    <string name="auto_start_hint">Some manufacturers require enabling auto-start in system settings</string>
 </resources>

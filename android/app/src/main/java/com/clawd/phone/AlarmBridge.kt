@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -23,12 +24,20 @@ class AlarmBridge(
         private const val TAG = "AlarmBridge"
         const val COOLDOWN_MS = 10_000L
         const val DEFAULT_VOLUME = 0.7f
+        const val AUTO_STOP_MS = 5_000L
         internal const val VIBRATE_SHORT_MS = 200L
         internal val VIBRATE_PATTERN_ALARM = longArrayOf(0, 400, 200, 400, 200, 400)
 
-        val KNOWN_TYPES = setOf("notification", "alarm")
+        val KNOWN_TYPES = setOf("permission", "finished")
 
         fun clampVolume(percent: Int): Float = percent.coerceIn(0, 100) / 100f
+
+        fun amplitudeForIntensity(intensity: Int): Int = when (intensity) {
+            Prefs.VIBRATE_LIGHT -> 64
+            Prefs.VIBRATE_MEDIUM -> 128
+            Prefs.VIBRATE_STRONG -> 255
+            else -> 0
+        }
     }
 
     @Volatile
@@ -39,6 +48,8 @@ class AlarmBridge(
 
     @Volatile
     private var mediaPlayer: MediaPlayer? = null
+
+    private var autoStopRunnable: Runnable? = null
 
     @JavascriptInterface
     fun playAlarm(type: String) {
@@ -62,6 +73,13 @@ class AlarmBridge(
     internal fun handlePlayAlarm(type: String) {
         if (type !in KNOWN_TYPES) {
             Log.w(TAG, "Unknown alarm type: $type")
+            return
+        }
+
+        val prefs = context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        val soundEnabled = prefs.getBoolean(Prefs.KEY_SOUND_ENABLED, true)
+        if (!soundEnabled) {
+            Log.d(TAG, "Sound disabled in settings, skipping")
             return
         }
 
@@ -89,9 +107,12 @@ class AlarmBridge(
         if (shouldVibrate) {
             vibrateForType(type)
         }
+
+        scheduleAutoStop()
     }
 
     internal fun handleStopAlarm() {
+        cancelAutoStop()
         try {
             mediaPlayer?.let { player ->
                 if (player.isPlaying) {
@@ -116,32 +137,39 @@ class AlarmBridge(
 
     internal fun getLastPlayTime(): Long = lastPlayTime
 
+    private fun scheduleAutoStop() {
+        cancelAutoStop()
+        val runnable = Runnable { handleStopAlarm() }
+        autoStopRunnable = runnable
+        handler.postDelayed(runnable, AUTO_STOP_MS)
+    }
+
+    private fun cancelAutoStop() {
+        autoStopRunnable?.let { handler.removeCallbacks(it) }
+        autoStopRunnable = null
+    }
+
     private fun playSoundForType(type: String) {
         handleStopAlarm()
 
-        val uri = when (type) {
-            "alarm" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            else -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        }
-
         try {
+            val uri = resolveRingtoneUri(type) ?: return
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(
-                            if (type == "alarm") AudioAttributes.USAGE_ALARM
-                            else AudioAttributes.USAGE_NOTIFICATION
-                        )
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
                 setDataSource(context, uri)
                 setVolume(volume, volume)
+                isLooping = false
                 setOnCompletionListener { player ->
                     player.release()
                     if (this@AlarmBridge.mediaPlayer === player) {
                         this@AlarmBridge.mediaPlayer = null
                     }
+                    cancelAutoStop()
                 }
                 setOnErrorListener { player, _, _ ->
                     Log.w(TAG, "MediaPlayer error for type=$type")
@@ -162,13 +190,39 @@ class AlarmBridge(
         }
     }
 
+    internal fun resolveRingtoneUri(type: String): Uri? {
+        val prefs = context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        val prefKey = when (type) {
+            "permission" -> Prefs.KEY_SOUND_PERMISSION_URI
+            "finished" -> Prefs.KEY_SOUND_FINISHED_URI
+            else -> null
+        }
+
+        val savedUri = prefKey?.let { prefs.getString(it, null) }
+        if (!savedUri.isNullOrBlank()) {
+            return Uri.parse(savedUri)
+        }
+
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+    }
+
     private fun vibrateForType(type: String) {
         val vibrator = getVibrator() ?: return
+        val prefs = context.getSharedPreferences(Prefs.NAME, Context.MODE_PRIVATE)
+        val intensity = prefs.getInt(Prefs.KEY_VIBRATE_INTENSITY, Prefs.VIBRATE_MEDIUM)
 
-        val effect = if (type == "alarm") {
-            VibrationEffect.createWaveform(VIBRATE_PATTERN_ALARM, -1)
+        if (intensity == Prefs.VIBRATE_OFF) return
+
+        val amplitude = amplitudeForIntensity(intensity)
+
+        val effect = if (type == "permission") {
+            VibrationEffect.createWaveform(
+                VIBRATE_PATTERN_ALARM,
+                intArrayOf(0, amplitude, 0, amplitude, 0, amplitude),
+                -1
+            )
         } else {
-            VibrationEffect.createOneShot(VIBRATE_SHORT_MS, VibrationEffect.DEFAULT_AMPLITUDE)
+            VibrationEffect.createOneShot(VIBRATE_SHORT_MS, amplitude)
         }
 
         vibrator.vibrate(effect)

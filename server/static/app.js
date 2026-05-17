@@ -5,29 +5,119 @@ var _appExports = (function () {
   var DANGER_THRESHOLD = 0.90;
   var RECONNECT_BASE_MS = 1000;
   var RECONNECT_MAX_MS = 30000;
-  var TIMER_CIRCUMFERENCE = 2 * Math.PI * 10;
   var SESSION_WINDOW_SECONDS = 5 * 60 * 60;
+  var STALE_SESSION_MS = 10 * 60 * 1000;
+  var PET_DISPLAY_SCALE = 2.5;
+
+  var EVENT_TO_STATE = {
+    SessionStart: 'idle',
+    UserPromptSubmit: 'thinking',
+    PreToolUse: 'working',
+    PostToolUse: 'working',
+    PostToolUseFailure: 'error',
+    Stop: 'attention',
+    StopFailure: 'error',
+    SubagentStart: 'juggling',
+    SubagentStop: 'working',
+    PreCompact: 'sweeping',
+    PostCompact: 'attention',
+    Notification: 'notification',
+    Elicitation: 'notification',
+    WorktreeCreate: 'carrying'
+  };
+
+  var EVENT_MESSAGES = {
+    SessionStart: 'Starting...',
+    UserPromptSubmit: 'Thinking...',
+    PreToolUse: 'Working...',
+    PostToolUse: 'Working...',
+    PostToolUseFailure: 'Tool error!',
+    Stop: 'Task complete!',
+    StopFailure: 'Error!',
+    SubagentStart: 'Spawning agent...',
+    SubagentStop: 'Agent done',
+    PreCompact: 'Compacting...',
+    PostCompact: 'Compacted',
+    Notification: 'Notification!',
+    Elicitation: 'Needs approval!',
+    SessionEnd: 'Session ended',
+    SleepTimeout: 'ZZZ...'
+  };
+
+  var STATE_MESSAGES = {
+    idle: 'Watching...',
+    sleeping: 'ZZZ...',
+    thinking: 'Thinking...',
+    working: 'Working...',
+    error: 'Error!',
+    attention: 'Attention!',
+    juggling: 'Multi-tasking...',
+    sweeping: 'Cleaning up...',
+    notification: 'Notification!',
+    carrying: 'Carrying...'
+  };
+
+  var STATE_DOT_CLASS = {
+    working: 'dot-working',
+    thinking: 'dot-working',
+    juggling: 'dot-working',
+    carrying: 'dot-working',
+    sweeping: 'dot-working',
+    error: 'dot-alert',
+    attention: 'dot-alert',
+    notification: 'dot-alert',
+    idle: 'dot-idle',
+    sleeping: 'dot-idle'
+  };
+
+  var STATE_STATUS_TEXT = {
+    working: 'working',
+    thinking: 'working',
+    juggling: 'working',
+    carrying: 'working',
+    sweeping: 'working',
+    error: 'alert',
+    attention: 'alert',
+    notification: 'alert',
+    idle: 'idle',
+    sleeping: 'idle'
+  };
 
   var ws = null;
   var retryCount = 0;
   var retryTimer = null;
-  var countdownInterval = null;
-  var sessionResetTimestamp = null;
+  var clockInterval = null;
 
   var petEngine = null;
+  var currentSkinName = 'default';
+
+  var sessions = {};
+  var selectedSessionId = null;
+  var lastUsageTimestamp = null;
+  var sessionResetTimestamp = null;
 
   var dom = {};
 
   function init() {
     cacheDom();
     initPetEngine();
+    initClock();
+    initSessionSelector();
+    initSkinSelector();
+    fetchActiveSkin();
     connect();
   }
 
   function cacheDom() {
     dom.connDot = document.getElementById('conn-dot');
     dom.connText = document.getElementById('conn-text');
-    dom.petState = document.getElementById('pet-state');
+    dom.userName = document.getElementById('user-name');
+    dom.sessionDot = document.getElementById('session-dot');
+    dom.sessionName = document.getElementById('session-name');
+    dom.sessionCapsule = document.getElementById('session-capsule');
+    dom.sessionSelector = document.getElementById('session-selector');
+    dom.sessionDropdown = document.getElementById('session-dropdown');
+    dom.bubbleText = document.getElementById('bubble-text');
     dom.sessionReset = document.getElementById('session-reset');
     dom.weeklyReset = document.getElementById('weekly-reset');
     dom.sessionUsageValue = document.getElementById('session-usage-value');
@@ -36,11 +126,18 @@ var _appExports = (function () {
     dom.weeklyOpusFill = document.getElementById('weekly-opus-fill');
     dom.weeklySonnetValue = document.getElementById('weekly-sonnet-value');
     dom.weeklySonnetFill = document.getElementById('weekly-sonnet-fill');
-    dom.timerCircle = document.getElementById('timer-circle');
-    dom.timerText = document.getElementById('timer-text');
+    dom.clockTime = document.getElementById('clock-time');
+    dom.clockDate = document.getElementById('clock-date');
+    dom.updatedAgo = document.getElementById('updated-ago');
+    dom.skinOverlay = document.getElementById('skin-overlay');
+    dom.skinGrid = document.getElementById('skin-grid');
+    dom.skinClose = document.getElementById('skin-close');
+    dom.skinFileInput = document.getElementById('skin-file-input');
     dom.errorBanner = document.getElementById('error-banner');
     dom.errorText = document.getElementById('error-text');
   }
+
+  // ---- Pet Engine ----
 
   function initPetEngine() {
     var canvas = document.getElementById('pet-canvas');
@@ -49,10 +146,427 @@ var _appExports = (function () {
     petEngine = createPetEngine(canvas);
     petEngine.loadSkin('default').then(function () {
       petEngine.start();
+      scalePetCanvas(canvas);
     }).catch(function (err) {
       console.warn('[app] Failed to load default skin:', err.message);
     });
   }
+
+  function scalePetCanvas(canvas) {
+    if (!canvas || !canvas.width) return;
+    canvas.style.width = Math.round(canvas.width * PET_DISPLAY_SCALE) + 'px';
+    canvas.style.height = Math.round(canvas.height * PET_DISPLAY_SCALE) + 'px';
+  }
+
+  // ---- Display Name ----
+
+  function getDisplayName(sessionId, session) {
+    if (session && session.displayName) return session.displayName;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(sessionId)) {
+      return sessionId.substring(0, 8);
+    }
+    return sessionId;
+  }
+
+  function extractDirName(cwdPath) {
+    if (!cwdPath) return null;
+    var parts = cwdPath.replace(/\\/g, '/').split('/').filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : null;
+  }
+
+  // ---- Stale Session Cleanup ----
+
+  function cleanStaleSessions() {
+    var now = Date.now();
+    var changed = false;
+    var ids = Object.keys(sessions);
+    for (var i = 0; i < ids.length; i++) {
+      if (now - sessions[ids[i]].updatedAt > STALE_SESSION_MS) {
+        delete sessions[ids[i]];
+        changed = true;
+      }
+    }
+    if (changed) {
+      if (!selectedSessionId || !sessions[selectedSessionId]) {
+        var remaining = Object.keys(sessions);
+        selectedSessionId = remaining.length > 0 ? remaining[0] : null;
+      }
+      updateSessionCapsule();
+      updateBubbleForSession();
+    }
+  }
+
+  // ---- Clock ----
+
+  function initClock() {
+    updateClock();
+    clockInterval = setInterval(updateClock, 1000);
+    setInterval(cleanStaleSessions, 60000);
+  }
+
+  function updateClock() {
+    var now = new Date();
+    if (dom.clockTime) {
+      dom.clockTime.textContent = padZero(now.getHours()) + ':' + padZero(now.getMinutes());
+    }
+
+    if (dom.clockDate) {
+      var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      dom.clockDate.textContent =
+        now.getFullYear() + '.' +
+        padZero(now.getMonth() + 1) + '.' +
+        padZero(now.getDate()) + ' ' +
+        days[now.getDay()];
+    }
+
+    updateUpdatedAgo();
+    updateSessionCountdown();
+  }
+
+  function padZero(n) {
+    return n < 10 ? '0' + n : String(n);
+  }
+
+  function updateUpdatedAgo() {
+    if (!dom.updatedAgo) return;
+    if (!lastUsageTimestamp) {
+      dom.updatedAgo.textContent = '';
+      return;
+    }
+    var minutes = Math.floor((Date.now() - lastUsageTimestamp) / 60000);
+    if (minutes < 1) {
+      dom.updatedAgo.textContent = 'Updated just now';
+    } else if (minutes < 60) {
+      dom.updatedAgo.textContent = 'Updated ' + minutes + 'm ago';
+    } else {
+      dom.updatedAgo.textContent = 'Updated ' + Math.floor(minutes / 60) + 'h ago';
+    }
+  }
+
+  function updateSessionCountdown() {
+    if (!sessionResetTimestamp || !dom.sessionReset) return;
+    var remaining = Math.max(0, sessionResetTimestamp - Date.now());
+    dom.sessionReset.textContent = remaining <= 0 ? 'Reset!' : formatCountdown(remaining);
+  }
+
+  // ---- Session Selector ----
+
+  function initSessionSelector() {
+    if (dom.sessionCapsule) {
+      dom.sessionCapsule.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleSessionDropdown();
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      if (dom.sessionSelector && !dom.sessionSelector.contains(e.target)) {
+        closeSessionDropdown();
+      }
+    });
+  }
+
+  function toggleSessionDropdown() {
+    if (!dom.sessionSelector) return;
+    dom.sessionSelector.classList.toggle('open');
+    if (dom.sessionSelector.classList.contains('open')) {
+      renderSessionDropdown();
+    }
+  }
+
+  function closeSessionDropdown() {
+    if (dom.sessionSelector) {
+      dom.sessionSelector.classList.remove('open');
+    }
+  }
+
+  function renderSessionDropdown() {
+    if (!dom.sessionDropdown) return;
+    dom.sessionDropdown.innerHTML = '';
+
+    var ids = Object.keys(sessions);
+    if (ids.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'session-item';
+      var emptyText = document.createElement('span');
+      emptyText.className = 'session-item-task';
+      emptyText.textContent = 'No active sessions';
+      empty.appendChild(emptyText);
+      dom.sessionDropdown.appendChild(empty);
+      return;
+    }
+
+    ids.forEach(function (id) {
+      var session = sessions[id];
+      var item = document.createElement('div');
+      item.className = 'session-item';
+
+      var dot = document.createElement('span');
+      dot.className = 'dot ' + (STATE_DOT_CLASS[session.state] || 'dot-idle');
+
+      var info = document.createElement('div');
+      info.className = 'session-item-info';
+
+      var name = document.createElement('div');
+      name.className = 'session-item-name';
+      name.textContent = getDisplayName(id, session);
+
+      var task = document.createElement('div');
+      task.className = 'session-item-task';
+      task.textContent = session.message || STATE_MESSAGES[session.state] || '';
+
+      info.appendChild(name);
+      info.appendChild(task);
+
+      var status = document.createElement('span');
+      status.className = 'session-item-status';
+      status.textContent = STATE_STATUS_TEXT[session.state] || 'idle';
+
+      item.appendChild(dot);
+      item.appendChild(info);
+      item.appendChild(status);
+
+      item.addEventListener('click', function (e) {
+        e.stopPropagation();
+        selectSession(id);
+        closeSessionDropdown();
+      });
+
+      dom.sessionDropdown.appendChild(item);
+    });
+  }
+
+  function selectSession(sessionId) {
+    selectedSessionId = sessionId;
+    updateSessionCapsule();
+    updateBubbleForSession();
+
+    if (petEngine && sessions[selectedSessionId]) {
+      petEngine.setState(sessions[selectedSessionId].state);
+    }
+  }
+
+  function updateSessionCapsule() {
+    if (!dom.sessionName || !dom.sessionDot) return;
+
+    if (!selectedSessionId || !sessions[selectedSessionId]) {
+      var ids = Object.keys(sessions);
+      selectedSessionId = ids.length > 0 ? ids[0] : null;
+    }
+
+    if (!selectedSessionId) {
+      dom.sessionName.textContent = '--';
+      dom.sessionDot.className = 'dot dot-idle';
+      return;
+    }
+
+    var session = sessions[selectedSessionId];
+    dom.sessionName.textContent = getDisplayName(selectedSessionId, session);
+    dom.sessionDot.className = 'dot ' + (STATE_DOT_CLASS[session.state] || 'dot-idle');
+  }
+
+  function updateBubbleForSession() {
+    if (!dom.bubbleText) return;
+
+    if (!selectedSessionId || !sessions[selectedSessionId]) {
+      dom.bubbleText.textContent = 'Watching...';
+      return;
+    }
+
+    var session = sessions[selectedSessionId];
+    dom.bubbleText.textContent = session.message || STATE_MESSAGES[session.state] || 'Watching...';
+  }
+
+  // ---- Skin Selector ----
+
+  function initSkinSelector() {
+    var canvas = document.getElementById('pet-canvas');
+    if (canvas) {
+      canvas.addEventListener('click', function () {
+        openSkinSelector();
+      });
+    }
+
+    if (dom.skinClose) {
+      dom.skinClose.addEventListener('click', function () {
+        closeSkinSelector();
+      });
+    }
+
+    if (dom.skinOverlay) {
+      dom.skinOverlay.addEventListener('click', function (e) {
+        if (e.target === dom.skinOverlay) {
+          closeSkinSelector();
+        }
+      });
+    }
+
+    if (dom.skinFileInput) {
+      dom.skinFileInput.addEventListener('change', handleSkinUpload);
+    }
+  }
+
+  function fetchActiveSkin() {
+    fetch('/api/skins/active')
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.active && data.active !== 'default') {
+          currentSkinName = data.active;
+          if (petEngine) {
+            var canvas = document.getElementById('pet-canvas');
+            petEngine.loadSkin(currentSkinName).then(function () {
+              scalePetCanvas(canvas);
+            }).catch(function () {});
+          }
+        }
+      })
+      .catch(function () {});
+  }
+
+  function openSkinSelector() {
+    if (!dom.skinOverlay) return;
+    dom.skinOverlay.classList.add('visible');
+
+    fetch('/api/skins')
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        renderSkinGrid(data.skins || []);
+      })
+      .catch(function () {});
+  }
+
+  function closeSkinSelector() {
+    if (dom.skinOverlay) {
+      dom.skinOverlay.classList.remove('visible');
+    }
+  }
+
+  function renderSkinGrid(skins) {
+    if (!dom.skinGrid) return;
+    dom.skinGrid.innerHTML = '';
+
+    skins.forEach(function (skin) {
+      var item = document.createElement('div');
+      item.className = 'skin-item';
+      if (skin.name === currentSkinName) {
+        item.classList.add('selected');
+      }
+
+      var canvas = document.createElement('canvas');
+      canvas.width = 42;
+      canvas.height = 30;
+      canvas.style.width = '42px';
+      canvas.style.height = '30px';
+      item.appendChild(canvas);
+
+      item.addEventListener('click', function () {
+        chooseSkin(skin.name);
+      });
+
+      dom.skinGrid.appendChild(item);
+      renderSkinPreview(canvas, skin.name);
+    });
+
+    var uploadItem = document.createElement('div');
+    uploadItem.className = 'skin-item upload-item';
+    uploadItem.textContent = '+';
+    uploadItem.addEventListener('click', function () {
+      if (dom.skinFileInput) dom.skinFileInput.click();
+    });
+    dom.skinGrid.appendChild(uploadItem);
+  }
+
+  function renderSkinPreview(canvas, skinName) {
+    fetch('/api/skins/' + skinName + '/manifest.json')
+      .then(function (res) {
+        if (!res.ok) throw new Error('not found');
+        return res.json();
+      })
+      .then(function (manifest) {
+        if (manifest.format === 'json-frames' && manifest.states && manifest.states.idle) {
+          return fetch('/api/skins/' + skinName + '/' + manifest.states.idle.file)
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              drawPreviewFrame(canvas, manifest, data);
+            });
+        }
+      })
+      .catch(function () {});
+  }
+
+  function drawPreviewFrame(canvas, manifest, data) {
+    if (!data.frames || data.frames.length === 0) return;
+    if (typeof decodeFrame !== 'function') return;
+
+    var ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    var frame = decodeFrame(data.frames[0]);
+    if (frame.length === 0) return;
+
+    var palette = data.palette || manifest.palette || {};
+    var spriteW = manifest.spriteWidth || 14;
+    var spriteH = manifest.spriteHeight || 10;
+    var scale = Math.min(canvas.width / spriteW, canvas.height / spriteH);
+    var offsetX = Math.floor((canvas.width - spriteW * scale) / 2);
+    var offsetY = Math.floor((canvas.height - spriteH * scale) / 2);
+
+    for (var y = 0; y < frame.length; y++) {
+      var row = frame[y];
+      for (var x = 0; x < row.length; x++) {
+        if (row[x] === 0) continue;
+        var color = palette[row[x]];
+        if (!color) continue;
+        ctx.fillStyle = color;
+        ctx.fillRect(offsetX + x * scale, offsetY + y * scale, scale, scale);
+      }
+    }
+  }
+
+  function chooseSkin(skinName) {
+    currentSkinName = skinName;
+
+    fetch('/api/skins/active', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skin: skinName })
+    }).catch(function () {});
+
+    if (petEngine) {
+      var canvas = document.getElementById('pet-canvas');
+      petEngine.loadSkin(skinName).then(function () {
+        scalePetCanvas(canvas);
+      }).catch(function () {});
+    }
+
+    closeSkinSelector();
+  }
+
+  function handleSkinUpload() {
+    var file = dom.skinFileInput.files && dom.skinFileInput.files[0];
+    if (!file) return;
+
+    var formData = new FormData();
+    formData.append('file', file);
+    var skinName = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    formData.append('name', skinName);
+
+    if (file.type !== 'application/zip' && file.type !== 'application/x-zip-compressed') {
+      formData.append('state', 'idle');
+    }
+
+    fetch('/api/skins/upload', { method: 'POST', body: formData })
+      .then(function (res) { return res.json(); })
+      .then(function () {
+        chooseSkin(skinName);
+        openSkinSelector();
+      })
+      .catch(function () {});
+
+    dom.skinFileInput.value = '';
+  }
+
+  // ---- WebSocket ----
 
   function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
@@ -87,12 +601,11 @@ var _appExports = (function () {
     };
 
     ws.onclose = function () {
+      setConnectionStatus('disconnected');
       scheduleReconnect();
     };
 
-    ws.onerror = function () {
-      // onclose fires after onerror
-    };
+    ws.onerror = function () {};
   }
 
   function scheduleReconnect() {
@@ -114,15 +627,17 @@ var _appExports = (function () {
     dom.connDot.className = 'dot';
     if (status === 'connected') {
       dom.connDot.classList.add('dot-connected');
-      dom.connText.textContent = 'Connected';
+      if (dom.connText) dom.connText.textContent = 'Connected';
     } else if (status === 'reconnecting') {
       dom.connDot.classList.add('dot-reconnecting');
-      dom.connText.textContent = 'Reconnecting...';
+      if (dom.connText) dom.connText.textContent = 'Reconnecting...';
     } else {
       dom.connDot.classList.add('dot-disconnected');
-      dom.connText.textContent = 'Disconnected';
+      if (dom.connText) dom.connText.textContent = 'Disconnected';
     }
   }
+
+  // ---- Message Handling ----
 
   function handleMessage(msg) {
     if (msg.type === 'usage_update') {
@@ -141,11 +656,11 @@ var _appExports = (function () {
     }
     hideError();
 
-    updatePercentageBar(
-      dom.sessionUsageFill,
-      dom.sessionUsageValue,
-      data.sessionUsage
-    );
+    lastUsageTimestamp = data.lastUpdatedAt
+      ? new Date(data.lastUpdatedAt).getTime()
+      : Date.now();
+
+    updatePercentageBar(dom.sessionUsageFill, dom.sessionUsageValue, data.sessionUsage);
 
     updatePercentageBar(
       dom.weeklyOpusFill,
@@ -153,15 +668,10 @@ var _appExports = (function () {
       data.weeklyOpusUsage != null ? data.weeklyOpusUsage : data.weeklyUsage
     );
 
-    updatePercentageBar(
-      dom.weeklySonnetFill,
-      dom.weeklySonnetValue,
-      data.weeklySonnetUsage
-    );
+    updatePercentageBar(dom.weeklySonnetFill, dom.weeklySonnetValue, data.weeklySonnetUsage);
 
     if (data.sessionResetAt) {
       sessionResetTimestamp = new Date(data.sessionResetAt).getTime();
-      startCountdown();
     }
 
     if (data.weeklyResetAt && dom.weeklyReset) {
@@ -180,7 +690,6 @@ var _appExports = (function () {
     }
 
     var pct = Math.min(utilization / 100, 1);
-
     fillEl.style.width = (pct * 100).toFixed(1) + '%';
     valueEl.textContent = utilization.toFixed(0) + '%';
 
@@ -192,12 +701,73 @@ var _appExports = (function () {
     }
   }
 
+  function updatePetState(data) {
+    if (!data) return;
+
+    var sessionId = data.sessionId || 'default';
+    var event = data.event;
+    var resolvedState = data.resolvedState;
+
+    if (event === 'SessionEnd') {
+      delete sessions[sessionId];
+    } else if (event !== 'OneshotReturn' && event !== 'SleepTimeout') {
+      var sessionState = EVENT_TO_STATE[event] || 'idle';
+      var prevSession = sessions[sessionId];
+      var displayName = extractDirName(data.cwd)
+        || (prevSession && prevSession.displayName)
+        || null;
+      sessions[sessionId] = {
+        state: sessionState,
+        event: event,
+        message: EVENT_MESSAGES[event] || STATE_MESSAGES[sessionState] || 'Watching...',
+        displayName: displayName,
+        updatedAt: Date.now()
+      };
+    }
+
+    if (!selectedSessionId || !sessions[selectedSessionId]) {
+      var ids = Object.keys(sessions);
+      selectedSessionId = ids.length > 0 ? ids[0] : null;
+    }
+
+    updateSessionCapsule();
+
+    if (event === 'SleepTimeout') {
+      if (dom.bubbleText) dom.bubbleText.textContent = 'ZZZ...';
+    } else if (event !== 'OneshotReturn') {
+      updateBubbleForSession();
+    }
+
+    var targetPetState = null;
+    if (event === 'SleepTimeout') {
+      targetPetState = 'sleeping';
+    } else if (selectedSessionId && sessions[selectedSessionId]) {
+      targetPetState = sessions[selectedSessionId].state;
+    } else {
+      targetPetState = resolvedState || 'idle';
+    }
+
+    if (petEngine && targetPetState) {
+      petEngine.setState(targetPetState);
+    }
+
+    if (event === 'Stop' || event === 'Notification') {
+      callAndroidBridge('playAlarm', 'finished');
+    } else if (event === 'Elicitation') {
+      callAndroidBridge('playAlarm', 'permission');
+    }
+  }
+
+  // ---- Utilities ----
+
   function showError(errorType) {
     if (!dom.errorBanner || !dom.errorText) return;
+    if (errorType === 'rate-limited' || errorType === 'timeout') {
+      dom.errorBanner.style.display = 'none';
+      return;
+    }
     var messages = {
       'no-credentials': 'No credentials found',
-      'timeout': 'Request timed out',
-      'rate-limited': 'Rate limited, retrying...',
       'api-error': 'API error',
       'parse-error': 'Data parse error'
     };
@@ -208,42 +778,6 @@ var _appExports = (function () {
   function hideError() {
     if (!dom.errorBanner) return;
     dom.errorBanner.style.display = 'none';
-  }
-
-  function startCountdown() {
-    if (countdownInterval) clearInterval(countdownInterval);
-
-    updateCountdownDisplay();
-    countdownInterval = setInterval(updateCountdownDisplay, 1000);
-  }
-
-  function updateCountdownDisplay() {
-    if (!sessionResetTimestamp) return;
-
-    var now = Date.now();
-    var remaining = Math.max(0, sessionResetTimestamp - now);
-
-    if (remaining <= 0) {
-      if (dom.timerText) dom.timerText.textContent = 'Reset!';
-      if (dom.timerCircle) dom.timerCircle.setAttribute('stroke-dashoffset', '0');
-      if (dom.sessionReset) dom.sessionReset.textContent = 'Reset!';
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-      return;
-    }
-
-    var text = formatCountdown(remaining);
-    if (dom.timerText) dom.timerText.textContent = text;
-    if (dom.sessionReset) dom.sessionReset.textContent = text;
-
-    var totalSeconds = remaining / 1000;
-    var progress = Math.min(totalSeconds / SESSION_WINDOW_SECONDS, 1);
-    var offset = TIMER_CIRCUMFERENCE * (1 - progress);
-    if (dom.timerCircle) {
-      dom.timerCircle.setAttribute('stroke-dashoffset', offset.toFixed(2));
-    }
   }
 
   function formatCountdown(ms) {
@@ -263,23 +797,6 @@ var _appExports = (function () {
     return formatCountdown(remaining);
   }
 
-  function updatePetState(data) {
-    if (!data || !data.resolvedState) return;
-
-    var state = data.resolvedState;
-    if (dom.petState) dom.petState.textContent = state;
-
-    if (petEngine) {
-      petEngine.setState(state);
-    }
-
-    if (data.event === 'Stop' || data.event === 'Notification') {
-      callAndroidBridge('playAlarm', 'notification');
-    } else if (data.event === 'Elicitation') {
-      callAndroidBridge('playAlarm', 'alarm');
-    }
-  }
-
   function callAndroidBridge(method, arg) {
     if (typeof window !== 'undefined' && window.Android && typeof window.Android[method] === 'function') {
       try {
@@ -291,6 +808,8 @@ var _appExports = (function () {
       console.warn('[app] Android.' + method + '(' + arg + ') — bridge not available');
     }
   }
+
+  // ---- Bootstrap ----
 
   if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') {

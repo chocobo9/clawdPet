@@ -1,6 +1,7 @@
 package com.clawd.phone
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
@@ -22,12 +23,18 @@ class AlarmBridgeTest {
 
     private lateinit var mockContext: Context
     private lateinit var mockHandler: Handler
+    private lateinit var mockPrefs: SharedPreferences
     private lateinit var bridge: AlarmBridge
 
     @Before
     fun setUp() {
         mockContext = mock()
         mockHandler = mock()
+        mockPrefs = mock()
+        whenever(mockContext.getSharedPreferences(eq(Prefs.NAME), eq(Context.MODE_PRIVATE)))
+            .thenReturn(mockPrefs)
+        whenever(mockPrefs.getBoolean(eq(Prefs.KEY_SOUND_ENABLED), any())).thenReturn(true)
+        whenever(mockPrefs.getInt(eq(Prefs.KEY_VIBRATE_INTENSITY), any())).thenReturn(Prefs.VIBRATE_MEDIUM)
         bridge = AlarmBridge(mockContext, mockHandler)
     }
 
@@ -62,22 +69,28 @@ class AlarmBridgeTest {
     }
 
     @Test
-    fun `KNOWN_TYPES contains notification and alarm`() {
-        assertTrue(AlarmBridge.KNOWN_TYPES.contains("notification"))
-        assertTrue(AlarmBridge.KNOWN_TYPES.contains("alarm"))
+    fun `KNOWN_TYPES contains permission and finished`() {
+        assertTrue(AlarmBridge.KNOWN_TYPES.contains("permission"))
+        assertTrue(AlarmBridge.KNOWN_TYPES.contains("finished"))
         assertEquals(2, AlarmBridge.KNOWN_TYPES.size)
     }
 
     @Test
-    fun `KNOWN_TYPES rejects unknown types`() {
+    fun `KNOWN_TYPES rejects old and unknown types`() {
+        assertFalse(AlarmBridge.KNOWN_TYPES.contains("notification"))
+        assertFalse(AlarmBridge.KNOWN_TYPES.contains("alarm"))
         assertFalse(AlarmBridge.KNOWN_TYPES.contains("unknown"))
         assertFalse(AlarmBridge.KNOWN_TYPES.contains(""))
-        assertFalse(AlarmBridge.KNOWN_TYPES.contains("task_complete"))
     }
 
     @Test
     fun `COOLDOWN_MS is 10 seconds`() {
         assertEquals(10_000L, AlarmBridge.COOLDOWN_MS)
+    }
+
+    @Test
+    fun `AUTO_STOP_MS is 5 seconds`() {
+        assertEquals(5_000L, AlarmBridge.AUTO_STOP_MS)
     }
 
     @Test
@@ -88,6 +101,14 @@ class AlarmBridgeTest {
     @Test
     fun `VIBRATE_PATTERN_ALARM has 6 segments`() {
         assertEquals(6, AlarmBridge.VIBRATE_PATTERN_ALARM.size)
+    }
+
+    @Test
+    fun `amplitudeForIntensity maps correctly`() {
+        assertEquals(0, AlarmBridge.amplitudeForIntensity(Prefs.VIBRATE_OFF))
+        assertEquals(64, AlarmBridge.amplitudeForIntensity(Prefs.VIBRATE_LIGHT))
+        assertEquals(128, AlarmBridge.amplitudeForIntensity(Prefs.VIBRATE_MEDIUM))
+        assertEquals(255, AlarmBridge.amplitudeForIntensity(Prefs.VIBRATE_STRONG))
     }
 
     @Test
@@ -122,7 +143,14 @@ class AlarmBridgeTest {
     @Test
     fun `handlePlayAlarm with unknown type does not access AudioManager`() {
         bridge.handlePlayAlarm("task_complete")
-        verify(mockContext, never()).getSystemService(any<String>())
+        verify(mockContext, never()).getSystemService(eq(Context.AUDIO_SERVICE))
+    }
+
+    @Test
+    fun `handlePlayAlarm skips when sound disabled`() {
+        whenever(mockPrefs.getBoolean(eq(Prefs.KEY_SOUND_ENABLED), any())).thenReturn(false)
+        bridge.handlePlayAlarm("finished")
+        assertEquals(0L, bridge.getLastPlayTime())
     }
 
     @Test
@@ -148,7 +176,7 @@ class AlarmBridgeTest {
         whenever(mockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager)
         whenever(mockAudioManager.ringerMode).thenReturn(AudioManager.RINGER_MODE_SILENT)
 
-        bridge.handlePlayAlarm("notification")
+        bridge.handlePlayAlarm("finished")
 
         verify(mockContext).getSystemService(eq(Context.AUDIO_SERVICE))
     }
@@ -159,7 +187,7 @@ class AlarmBridgeTest {
         whenever(mockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager)
         whenever(mockAudioManager.ringerMode).thenReturn(AudioManager.RINGER_MODE_SILENT)
 
-        bridge.handlePlayAlarm("notification")
+        bridge.handlePlayAlarm("finished")
 
         assertEquals(0L, bridge.getLastPlayTime())
     }
@@ -170,7 +198,7 @@ class AlarmBridgeTest {
         whenever(mockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager)
         whenever(mockAudioManager.ringerMode).thenReturn(AudioManager.RINGER_MODE_NORMAL)
 
-        bridge.handlePlayAlarm("notification")
+        bridge.handlePlayAlarm("finished")
 
         assertTrue(bridge.getLastPlayTime() > 0L)
     }
@@ -181,11 +209,11 @@ class AlarmBridgeTest {
         whenever(mockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager)
         whenever(mockAudioManager.ringerMode).thenReturn(AudioManager.RINGER_MODE_NORMAL)
 
-        bridge.handlePlayAlarm("notification")
+        bridge.handlePlayAlarm("finished")
         val firstPlayTime = bridge.getLastPlayTime()
         assertTrue(firstPlayTime > 0L)
 
-        bridge.handlePlayAlarm("alarm")
+        bridge.handlePlayAlarm("permission")
         assertEquals(firstPlayTime, bridge.getLastPlayTime())
         assertTrue(bridge.isCooldownActive())
     }
@@ -196,14 +224,14 @@ class AlarmBridgeTest {
         whenever(mockContext.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mockAudioManager)
         whenever(mockAudioManager.ringerMode).thenReturn(AudioManager.RINGER_MODE_VIBRATE)
 
-        bridge.handlePlayAlarm("notification")
+        bridge.handlePlayAlarm("finished")
 
         assertTrue(bridge.getLastPlayTime() > 0L)
     }
 
     @Test
     fun `playAlarm posts to handler`() {
-        bridge.playAlarm("notification")
+        bridge.playAlarm("finished")
         verify(mockHandler).post(any())
     }
 

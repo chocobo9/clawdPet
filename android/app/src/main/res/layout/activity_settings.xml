@@ -20,6 +20,8 @@
             android:textStyle="bold"
             android:layout_marginBottom="32dp" />
 
+        <!-- Server URL section -->
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -60,6 +62,106 @@
             android:textSize="13sp"
             android:layout_marginBottom="24dp"
             android:visibility="gone" />
+
+        <!-- Notifications section -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/section_notifications"
+            android:textColor="#E0E0E0"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/soundEnabledSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sound_enabled_label"
+            android:textColor="#E0E0E0"
+            android:checked="true"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sound_permission_label"
+            android:textColor="#8B8FA3"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/soundPermissionBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sound_default"
+            android:layout_marginBottom="12dp"
+            android:textAllCaps="false"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/sound_finished_label"
+            android:textColor="#8B8FA3"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/soundFinishedBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sound_default"
+            android:layout_marginBottom="16dp"
+            android:textAllCaps="false"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/vibrate_intensity_label"
+            android:textColor="#8B8FA3"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp" />
+
+        <Spinner
+            android:id="@+id/vibrateSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="24dp"
+            android:entries="@array/vibrate_options"
+            android:backgroundTint="#8B8FA3" />
+
+        <!-- Startup section -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/section_startup"
+            android:textColor="#E0E0E0"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/autoStartSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/auto_start_label"
+            android:textColor="#E0E0E0"
+            android:checked="true"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/auto_start_hint"
+            android:textColor="#5A5E72"
+            android:textSize="12sp"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Save -->
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/saveBtn"
