@@ -45,6 +45,13 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+app.get('/api/sessions', (_req, res) => {
+  res.json({
+    sessions: hookReceiver.getSessions(),
+    resolvedState: hookReceiver.getResolvedState()
+  });
+});
+
 server.listen(config.port, config.host, () => {
   console.log(`[clawd-pet] Server listening on ${config.host}:${config.port}`);
   usagePoller.start();

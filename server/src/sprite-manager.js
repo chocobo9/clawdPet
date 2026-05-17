@@ -6,7 +6,7 @@ const AdmZip = require('adm-zip');
 const path = require('path');
 const fs = require('fs');
 const { PET_STATES } = require('./models.js');
-const { CAPYBARA, STATE_SOURCE_MAP, STATE_INTERVAL_MAP } = require('./default-pet-data.js');
+const { BUILTIN_SKINS, STATE_SOURCE_MAP, STATE_INTERVAL_MAP } = require('./default-pet-data.js');
 
 const MAX_SINGLE_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_ZIP_FILE_SIZE = 10 * 1024 * 1024;
@@ -359,20 +359,20 @@ function listSkins(skinsDir) {
   return skins;
 }
 
-function ensureDefaultSkin(skinsDir) {
-  const defaultDir = path.join(skinsDir, 'default');
-  const manifestPath = path.join(defaultDir, 'manifest.json');
+function ensureBuiltinSkin(skinsDir, skinName, petData) {
+  const skinDir = path.join(skinsDir, skinName);
+  const manifestPath = path.join(skinDir, 'manifest.json');
   if (fs.existsSync(manifestPath)) return;
 
-  fs.mkdirSync(defaultDir, { recursive: true });
+  fs.mkdirSync(skinDir, { recursive: true });
 
   const manifest = {
-    name: 'default',
+    name: skinName,
     format: 'json-frames',
     spriteWidth: 14,
     spriteHeight: 10,
     pixelScale: 3,
-    palette: CAPYBARA.palette,
+    palette: petData.palette,
     states: {}
   };
 
@@ -392,13 +392,19 @@ function ensureDefaultSkin(skinsDir) {
       source,
       frameCount: 2,
       intervalMs,
-      palette: CAPYBARA.palette,
-      frames: CAPYBARA[source]
+      palette: petData.palette,
+      frames: petData[source]
     };
-    fs.writeFileSync(path.join(defaultDir, filename), JSON.stringify(stateData, null, 2), 'utf-8');
+    fs.writeFileSync(path.join(skinDir, filename), JSON.stringify(stateData, null, 2), 'utf-8');
   }
 
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+}
+
+function ensureDefaultSkin(skinsDir) {
+  for (const [skinName, petData] of Object.entries(BUILTIN_SKINS)) {
+    ensureBuiltinSkin(skinsDir, skinName, petData);
+  }
 }
 
 module.exports = {

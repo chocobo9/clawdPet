@@ -566,6 +566,42 @@ var _appExports = (function () {
     dom.skinFileInput.value = '';
   }
 
+  // ---- Session Fetch ----
+
+  function fetchSessions() {
+    fetch('/api/sessions')
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data.sessions) return;
+        var serverSessions = data.sessions;
+        var ids = Object.keys(serverSessions);
+        for (var i = 0; i < ids.length; i++) {
+          var id = ids[i];
+          var s = serverSessions[id];
+          if (!sessions[id]) {
+            sessions[id] = {
+              state: s.state || 'idle',
+              event: null,
+              message: STATE_MESSAGES[s.state] || 'Watching...',
+              displayName: extractDirName(s.cwd),
+              updatedAt: s.updatedAt || Date.now()
+            };
+          }
+        }
+        if (!selectedSessionId || !sessions[selectedSessionId]) {
+          var remaining = Object.keys(sessions);
+          selectedSessionId = remaining.length > 0 ? remaining[0] : null;
+        }
+        updateSessionCapsule();
+        updateBubbleForSession();
+
+        if (petEngine && data.resolvedState) {
+          petEngine.setState(data.resolvedState);
+        }
+      })
+      .catch(function () {});
+  }
+
   // ---- WebSocket ----
 
   function connect() {
@@ -587,6 +623,7 @@ var _appExports = (function () {
     ws.onopen = function () {
       retryCount = 0;
       setConnectionStatus('connected');
+      fetchSessions();
     };
 
     ws.onmessage = function (event) {
