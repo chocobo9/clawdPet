@@ -1,0 +1,18 @@
+{
+  "name": "clawd-pet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop pixel pet + Claude usage monitor + task notification on old Samsung S20",
+  "scripts": {
+    "server:dev": "cd server && node src/index.js",
+    "server:test": "cd server && npx vitest run",
+    "server:test:watch": "cd server && npx vitest",
+    "server:test:coverage": "cd server && npx vitest run --coverage",
+    "hooks:install": "node scripts/install-hooks.js",
+    "hooks:uninstall": "node scripts/uninstall-hooks.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

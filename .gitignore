@@ -1,0 +1,30 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+
+# Coverage
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Harness (dev workflow artifacts)
+.harness/
+
+# Claude Code local settings
+.claude/

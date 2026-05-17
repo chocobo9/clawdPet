@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>ClawdPet</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="dashboard">
+    <div class="status-bar">
+      <div class="connection-status">
+        <span id="conn-dot" class="dot dot-disconnected"></span>
+        <span id="conn-text" class="status-text">Disconnected</span>
+      </div>
+      <span id="pet-state" class="pet-state-label">idle</span>
+    </div>
+
+    <div class="main-content">
+      <div class="pet-container">
+        <canvas id="pet-canvas"></canvas>
+      </div>
+
+      <div class="usage-panel">
+        <div class="usage-header">
+          <span class="usage-title">Session</span>
+          <span id="session-reset" class="usage-reset">--</span>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label">
+            <span class="progress-name">Usage</span>
+            <span id="session-usage-value" class="progress-value">--</span>
+          </div>
+          <div class="progress-bar">
+            <div id="session-usage-fill" class="progress-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="usage-header" style="margin-top: 4px;">
+          <span class="usage-title">Weekly</span>
+          <span id="weekly-reset" class="usage-reset">--</span>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label">
+            <span class="progress-name">Opus</span>
+            <span id="weekly-opus-value" class="progress-value">--</span>
+          </div>
+          <div class="progress-bar">
+            <div id="weekly-opus-fill" class="progress-fill" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label">
+            <span class="progress-name">Sonnet</span>
+            <span id="weekly-sonnet-value" class="progress-value">--</span>
+          </div>
+          <div class="progress-bar">
+            <div id="weekly-sonnet-fill" class="progress-fill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div id="error-banner" class="error-banner" style="display: none;">
+          <span id="error-text"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <div class="countdown-timer">
+        <svg class="timer-ring" viewBox="0 0 24 24">
+          <circle class="timer-bg" cx="12" cy="12" r="10"></circle>
+          <circle id="timer-circle" class="timer-progress" cx="12" cy="12" r="10"
+            stroke-dasharray="62.83" stroke-dashoffset="0"></circle>
+        </svg>
+        <span id="timer-text" class="timer-text">--</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="pet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
