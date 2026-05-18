@@ -49,9 +49,13 @@ Claude Code hooks (stdin JSON) ──► scripts/notify.js ──► POST /api/h
 ## Demo
 
 <p align="center">
-  <video src="demo_video.mp4" autoplay loop muted playsinline controls width="720">
-    <a href="demo_video.mp4">Watch demo video</a>
-  </video>
+  <img src="demo_landscape.png" alt="ClawdPet on phone — usage bars and pixel pet" width="720" />
+</p>
+
+<p align="center">
+  <img src="demo_thinking.jpg" alt="Pet in thinking state" width="340" />
+  &nbsp;
+  <img src="demo_pet_picker.png" alt="Skin picker" width="340" />
 </p>
 
 ## Quick Start
