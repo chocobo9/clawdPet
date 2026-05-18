@@ -856,7 +856,7 @@ describe('default-pet-data - data integrity', function () {
   test('STATE_SOURCE_MAP covers all 10 PET_STATES', function () {
     for (const state of PET_STATES) {
       expect(STATE_SOURCE_MAP[state]).toBeDefined();
-      expect(['idle', 'running', 'waiting']).toContain(STATE_SOURCE_MAP[state]);
+      expect(['idle', 'running', 'waiting', 'thinking']).toContain(STATE_SOURCE_MAP[state]);
     }
   });
 

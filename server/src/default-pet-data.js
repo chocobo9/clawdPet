@@ -103,7 +103,7 @@ const FOX = {
 const STATE_SOURCE_MAP = {
   idle: 'idle',
   sleeping: 'idle',
-  thinking: 'waiting',
+  thinking: 'thinking',
   working: 'running',
   error: 'waiting',
   attention: 'waiting',

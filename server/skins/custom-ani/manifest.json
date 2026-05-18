@@ -26,15 +26,17 @@
     },
     "thinking": {
       "files": [
-        "waiting_0.png",
-        "waiting_1.png",
-        "waiting_2.png",
-        "waiting_3.png",
-        "waiting_4.png",
-        "waiting_5.png",
-        "waiting_6.png"
+        "thinking_0.png",
+        "thinking_1.png",
+        "thinking_2.png",
+        "thinking_3.png",
+        "thinking_4.png",
+        "thinking_5.png",
+        "thinking_6.png",
+        "thinking_7.png",
+        "thinking_8.png"
       ],
-      "intervalMs": 100
+      "intervalMs": 131
     },
     "working": {
       "files": [

@@ -393,7 +393,7 @@ function ensureBuiltinSkin(skinsDir, skinName, petData) {
       frameCount: 2,
       intervalMs,
       palette: petData.palette,
-      frames: petData[source]
+      frames: petData[source] || petData['waiting']
     };
     fs.writeFileSync(path.join(skinDir, filename), JSON.stringify(stateData, null, 2), 'utf-8');
   }
