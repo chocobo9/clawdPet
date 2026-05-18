@@ -46,6 +46,14 @@ Claude Code hooks (stdin JSON) ──► scripts/notify.js ──► POST /api/h
 - **Subagent tracking** — juggling animation when subagents are active
 - **Oneshot events** — brief error/notification/attention states that auto-revert
 
+## Demo
+
+<p align="center">
+  <video src="Screen_Recording_20260517_174622_ClawdPet.mp4" autoplay loop muted playsinline controls width="720">
+    <a href="Screen_Recording_20260517_174622_ClawdPet.mp4">Watch demo video</a>
+  </video>
+</p>
+
 ## Quick Start
 
 ### 1. Server
