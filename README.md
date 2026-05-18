@@ -35,9 +35,11 @@ Claude Code hooks (stdin JSON) ──► scripts/notify.js ──► POST /api/h
 
 - **Pixel desktop pet** with state-driven animations (idle, working, thinking, sleeping, etc.)
 - **Claude usage monitoring** — session and weekly usage bars with countdown timers
-- **Task notifications** — ringtone when Claude finishes, alarm when input is needed
+- **Task notifications** — configurable per-event ringtone (permission vs finished), adjustable vibration intensity, 5s auto-stop
 - **Claude Code hooks** — automatic 15-event hook registration, real-time state updates
-- **Custom skins** — upload your own pet sprites via the settings page
+- **Custom skins** — tap the pet to open skin picker; upload sprites or convert .ani cursor files
+- **Session selector** — capsule dropdown showing all active sessions with state/message
+- **Boot auto-start** — optional automatic launch on phone reboot
 - **Multi-session aware** — tracks multiple Claude sessions, resolves dominant state by priority
 - **Subagent tracking** — juggling animation when subagents are active
 - **Oneshot events** — brief error/notification/attention states that auto-revert
@@ -47,7 +49,7 @@ Claude Code hooks (stdin JSON) ──► scripts/notify.js ──► POST /api/h
 ### 1. Server
 
 ```bash
-git clone https://github.com/user/clawdPet.git
+git clone https://github.com/chocobo9/clawdPet.git
 cd clawdPet/server
 npm install
 npm start
@@ -81,7 +83,8 @@ node scripts/install-hooks.js --uninstall
 
 1. Open `android/` in Android Studio
 2. Build and install on your old phone (minSdk 29 / Android 10+)
-3. On first launch, enter the server address: `http://<your-LAN-IP>:9870`
+3. On first launch, long-press back button → Settings → enter `http://<your-LAN-IP>:9870`
+4. Configure notification sounds, vibration intensity, and boot auto-start in the same Settings page
 
 ## Configuration
 
@@ -122,9 +125,10 @@ clawdPet/
 │       ├── MainActivity.kt     # WebView + lifecycle
 │       ├── AlarmBridge.kt      # JS→Native alarm bridge
 │       ├── ConnectionChecker.kt
-│       ├── SettingsActivity.kt # Server address config
+│       ├── SettingsActivity.kt # Server URL, sound/vibration, auto-start
 │       ├── KeepAliveService.kt # Foreground service
-│       └── Prefs.kt           # SharedPreferences helper
+│       ├── BootReceiver.kt    # Auto-launch on BOOT_COMPLETED
+│       └── Prefs.kt           # SharedPreferences keys
 ├── scripts/
 │   ├── notify.js               # Hook notification script
 │   └── install-hooks.js        # Hook auto-registration
@@ -169,12 +173,22 @@ clawdPet/
 3. Check that the config at `~/.clawd-phone/config.json` has the correct server address
 4. Test manually: `echo '{"session_id":"test"}' | node scripts/notify.js SessionStart`
 
-### How do I upload a custom skin?
+### How do I add a custom skin?
 
-1. Open the settings page on the phone app (long-press the back button)
-2. Use the skin upload section to upload a ZIP file containing:
-   - `manifest.json` with `name`, `states` map, and `format` (`gif` or `image`)
-   - Animation files (GIF or PNG) for each state
+**Option A — Tap the pet** in the dashboard → skin picker opens → tap "+" to upload a ZIP or image.
+
+**Option B — From .ani cursor files:**
+
+```bash
+# Put idle.ani, running.ani, waiting.ani (and optionally thinking.ani) in .harness/pet_source/
+node .harness/ani2skin.mjs
+# Restart server — new skin appears as "custom-ani" in the picker
+```
+
+**Option C — Manual:** place a skin directory in `server/skins/` with a `manifest.json`. Supports three formats:
+- `json-frames` — hex-encoded pixel data with palette (14×10, like built-in skins)
+- `image` — one PNG/GIF/WebP per state
+- `image-frames` — multiple PNGs per state with frame cycling (for .ani conversions)
 
 ### The pet is stuck in one state
 
