@@ -30,6 +30,37 @@ const spriteManager = createSpriteManager({
   skinsDir: path.join(__dirname, '..', 'skins')
 });
 
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+const rateLimitCounts = new Map();
+const RATE_LIMIT_WINDOW = 60000;
+const RATE_LIMIT_MAX = 120;
+
+function rateLimit(req, res, next) {
+  const ip = req.ip;
+  const now = Date.now();
+  const entry = rateLimitCounts.get(ip);
+  if (!entry || now - entry.start > RATE_LIMIT_WINDOW) {
+    rateLimitCounts.set(ip, { start: now, count: 1 });
+    return next();
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) {
+    res.status(429).json({ error: 'Too many requests' });
+    return;
+  }
+  next();
+}
+
+app.use('/api/hook', rateLimit);
+app.use('/api/skins/upload', rateLimit);
+
 app.use(hookReceiver.router);
 app.use(spriteManager.router);
 

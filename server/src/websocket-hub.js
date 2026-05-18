@@ -24,6 +24,22 @@ function createWebSocketHub(httpServer, options = {}) {
       return;
     }
 
+    const origin = req.headers.origin;
+    if (origin) {
+      try {
+        const originHost = new URL(origin).host;
+        if (originHost !== req.headers.host) {
+          console.warn(`[ws-hub] Rejected cross-origin WS from: ${origin}`);
+          socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+          socket.destroy();
+          return;
+        }
+      } catch {
+        socket.destroy();
+        return;
+      }
+    }
+
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit('connection', ws, req);
     });

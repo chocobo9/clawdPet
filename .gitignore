@@ -30,5 +30,19 @@ Thumbs.db
 .claude/
 CLAUDE.md
 
-#temp files
+# Temp files
 *.ani
+
+# Runtime state
+server/skins/.active
+
+# Certificates / keystores
+*.pem
+*.key
+*.p12
+*.jks
+*.pfx
+*.keystore
+
+# Env variants
+.env.*

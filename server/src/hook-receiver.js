@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const express = require('express');
 const {
   EVENT_TO_STATE,
@@ -20,10 +21,16 @@ function createHookReceiver({ config, broadcast }) {
   const router = express.Router();
   router.use(express.json({ limit: '1mb' }));
 
+  if (!config.hookSecret) {
+    console.warn('[hook-receiver] WARNING: hookSecret is empty — hook endpoint is unauthenticated');
+  }
+
   router.post('/api/hook', (req, res) => {
     if (config.hookSecret) {
       const auth = req.headers.authorization;
-      if (!auth || auth !== `Bearer ${config.hookSecret}`) {
+      const expected = `Bearer ${config.hookSecret}`;
+      if (!auth || auth.length !== expected.length
+          || !crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }

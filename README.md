@@ -5,6 +5,8 @@
   </p>
 </p>
 
+> **Security Notice:** This project is designed as a personal LAN tool for trusted home networks. All communication between the server and phone uses unencrypted HTTP/WebSocket. Do **not** expose the server port (9870) to the public internet. If you need remote access, use a VPN or [Tailscale](https://tailscale.com) to keep traffic within a private network.
+
 ## Architecture
 
 ```

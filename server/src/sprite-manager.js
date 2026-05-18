@@ -202,7 +202,7 @@ function createSpriteManager({ skinsDir }) {
     const safeName = sanitizeFilename(file);
     const filePath = path.join(skinsDir, name, safeName);
 
-    if (!isSafePath(safeName, path.join(skinsDir, name))) {
+    if (!isSafePath(filePath, skinsDir)) {
       res.status(400).json({ error: 'Invalid file path' });
       return;
     }
