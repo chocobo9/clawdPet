@@ -154,8 +154,11 @@ var _appExports = (function () {
 
   function scalePetCanvas(canvas) {
     if (!canvas || !canvas.width) return;
-    canvas.style.width = Math.round(canvas.width * PET_DISPLAY_SCALE) + 'px';
-    canvas.style.height = Math.round(canvas.height * PET_DISPLAY_SCALE) + 'px';
+    var targetSize = 110;
+    var maxDim = Math.max(canvas.width, canvas.height);
+    var scale = maxDim < targetSize ? Math.floor(targetSize / maxDim) : 1;
+    canvas.style.width = Math.round(canvas.width * scale) + 'px';
+    canvas.style.height = Math.round(canvas.height * scale) + 'px';
   }
 
   // ---- Display Name ----
@@ -453,10 +456,10 @@ var _appExports = (function () {
       }
 
       var canvas = document.createElement('canvas');
-      canvas.width = 42;
-      canvas.height = 30;
-      canvas.style.width = '42px';
-      canvas.style.height = '30px';
+      canvas.width = 48;
+      canvas.height = 48;
+      canvas.style.width = '48px';
+      canvas.style.height = '48px';
       item.appendChild(canvas);
 
       item.addEventListener('click', function () {
@@ -483,7 +486,24 @@ var _appExports = (function () {
         return res.json();
       })
       .then(function (manifest) {
-        if (manifest.format === 'json-frames' && manifest.states && manifest.states.idle) {
+        if (!manifest.states || !manifest.states.idle) return;
+
+        if (manifest.format === 'image-frames' && manifest.states.idle.files) {
+          var firstFile = manifest.states.idle.files[0];
+          var img = new Image();
+          img.onload = function () {
+            var ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+            var scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+            var ox = Math.floor((canvas.width - img.width * scale) / 2);
+            var oy = Math.floor((canvas.height - img.height * scale) / 2);
+            ctx.drawImage(img, ox, oy, img.width * scale, img.height * scale);
+          };
+          img.src = '/api/skins/' + skinName + '/' + firstFile;
+          return;
+        }
+
+        if (manifest.format === 'json-frames' && manifest.states.idle.file) {
           return fetch('/api/skins/' + skinName + '/' + manifest.states.idle.file)
             .then(function (res) { return res.json(); })
             .then(function (data) {

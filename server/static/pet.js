@@ -87,6 +87,29 @@ function createPetEngine(canvas, options) {
         });
     }
 
+    if (manifest.format === 'image-frames' && stateInfo.files) {
+      var imagePromises = stateInfo.files.map(function (f) {
+        return loadImage(baseUrl + '/api/skins/' + skinName + '/' + f);
+      });
+      return Promise.all(imagePromises).then(function (images) {
+        stateFrames[state] = {
+          type: 'images',
+          images: images,
+          intervalMs: stateInfo.intervalMs || DEFAULT_INTERVAL_MS
+        };
+        if (images.length > 0) {
+          var first = images[0];
+          if (!canvas.width || canvas.width < first.width) {
+            canvas.width = first.width;
+            canvas.height = first.height;
+          }
+        }
+      }).catch(function (err) {
+        console.warn('[pet] Failed to load image-frames:', state, err && err.message);
+        stateFrames[state] = null;
+      });
+    }
+
     if (manifest.format === 'image') {
       var url = baseUrl + '/api/skins/' + skinName + '/' + stateInfo.file;
       return loadImage(url).then(function (img) {
@@ -135,7 +158,8 @@ function createPetEngine(canvas, options) {
     var interval = data.intervalMs || DEFAULT_INTERVAL_MS;
     if (timestamp && lastFrameTime) {
       if (timestamp - lastFrameTime >= interval) {
-        var totalFrames = data.type === 'json' ? data.frames.length : 1;
+        var totalFrames = data.type === 'json' ? data.frames.length
+          : data.type === 'images' ? data.images.length : 1;
         frameIndex = (frameIndex + 1) % totalFrames;
         lastFrameTime = timestamp;
       }
@@ -147,6 +171,8 @@ function createPetEngine(canvas, options) {
 
     if (data.type === 'json') {
       renderJsonFrame(data, frameIndex);
+    } else if (data.type === 'images') {
+      renderImagesFrame(data, frameIndex);
     } else if (data.type === 'image') {
       renderImageFrame(data);
     }
@@ -178,6 +204,14 @@ function createPetEngine(canvas, options) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (data.image) {
       ctx.drawImage(data.image, 0, 0);
+    }
+  }
+
+  function renderImagesFrame(data, idx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var img = data.images[idx];
+    if (img) {
+      ctx.drawImage(img, 0, 0);
     }
   }
 

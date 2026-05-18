@@ -1,0 +1,120 @@
+{
+  "name": "custom-ani",
+  "format": "image-frames",
+  "spriteWidth": 64,
+  "spriteHeight": 64,
+  "states": {
+    "idle": {
+      "files": [
+        "idle_0.png",
+        "idle_1.png",
+        "idle_2.png",
+        "idle_3.png",
+        "idle_4.png"
+      ],
+      "intervalMs": 125
+    },
+    "sleeping": {
+      "files": [
+        "idle_0.png",
+        "idle_1.png",
+        "idle_2.png",
+        "idle_3.png",
+        "idle_4.png"
+      ],
+      "intervalMs": 125
+    },
+    "thinking": {
+      "files": [
+        "waiting_0.png",
+        "waiting_1.png",
+        "waiting_2.png",
+        "waiting_3.png",
+        "waiting_4.png",
+        "waiting_5.png",
+        "waiting_6.png"
+      ],
+      "intervalMs": 100
+    },
+    "working": {
+      "files": [
+        "running_0.png",
+        "running_1.png",
+        "running_2.png",
+        "running_3.png",
+        "running_4.png",
+        "running_5.png"
+      ],
+      "intervalMs": 100
+    },
+    "error": {
+      "files": [
+        "waiting_0.png",
+        "waiting_1.png",
+        "waiting_2.png",
+        "waiting_3.png",
+        "waiting_4.png",
+        "waiting_5.png",
+        "waiting_6.png"
+      ],
+      "intervalMs": 100
+    },
+    "attention": {
+      "files": [
+        "waiting_0.png",
+        "waiting_1.png",
+        "waiting_2.png",
+        "waiting_3.png",
+        "waiting_4.png",
+        "waiting_5.png",
+        "waiting_6.png"
+      ],
+      "intervalMs": 100
+    },
+    "juggling": {
+      "files": [
+        "running_0.png",
+        "running_1.png",
+        "running_2.png",
+        "running_3.png",
+        "running_4.png",
+        "running_5.png"
+      ],
+      "intervalMs": 100
+    },
+    "sweeping": {
+      "files": [
+        "running_0.png",
+        "running_1.png",
+        "running_2.png",
+        "running_3.png",
+        "running_4.png",
+        "running_5.png"
+      ],
+      "intervalMs": 100
+    },
+    "notification": {
+      "files": [
+        "waiting_0.png",
+        "waiting_1.png",
+        "waiting_2.png",
+        "waiting_3.png",
+        "waiting_4.png",
+        "waiting_5.png",
+        "waiting_6.png"
+      ],
+      "intervalMs": 100
+    },
+    "carrying": {
+      "files": [
+        "running_0.png",
+        "running_1.png",
+        "running_2.png",
+        "running_3.png",
+        "running_4.png",
+        "running_5.png"
+      ],
+      "intervalMs": 100
+    }
+  }
+}

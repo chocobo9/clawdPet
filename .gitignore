@@ -29,3 +29,6 @@ Thumbs.db
 # Claude Code local settings
 .claude/
 CLAUDE.md
+
+#temp files
+*.ani
