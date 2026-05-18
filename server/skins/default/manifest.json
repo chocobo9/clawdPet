@@ -28,7 +28,7 @@
     },
     "thinking": {
       "file": "thinking.json",
-      "source": "waiting",
+      "source": "thinking",
       "frameCount": 2,
       "intervalMs": 600
     },

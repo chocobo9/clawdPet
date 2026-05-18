@@ -1,0 +1,78 @@
+{
+  "name": "bunny",
+  "format": "json-frames",
+  "spriteWidth": 14,
+  "spriteHeight": 10,
+  "pixelScale": 3,
+  "palette": {
+    "1": "#FFFFFF",
+    "2": "#E0D0D0",
+    "3": "#1a1a1a",
+    "4": "#FFB6C1",
+    "5": "#FF69B4",
+    "6": "#fff",
+    "7": "#aaa"
+  },
+  "states": {
+    "idle": {
+      "file": "idle.json",
+      "source": "idle",
+      "frameCount": 2,
+      "intervalMs": 800
+    },
+    "sleeping": {
+      "file": "sleeping.json",
+      "source": "idle",
+      "frameCount": 2,
+      "intervalMs": 1200
+    },
+    "thinking": {
+      "file": "thinking.json",
+      "source": "thinking",
+      "frameCount": 2,
+      "intervalMs": 600
+    },
+    "working": {
+      "file": "working.json",
+      "source": "running",
+      "frameCount": 2,
+      "intervalMs": 250
+    },
+    "error": {
+      "file": "error.json",
+      "source": "waiting",
+      "frameCount": 2,
+      "intervalMs": 600
+    },
+    "attention": {
+      "file": "attention.json",
+      "source": "waiting",
+      "frameCount": 2,
+      "intervalMs": 600
+    },
+    "juggling": {
+      "file": "juggling.json",
+      "source": "running",
+      "frameCount": 2,
+      "intervalMs": 250
+    },
+    "sweeping": {
+      "file": "sweeping.json",
+      "source": "running",
+      "frameCount": 2,
+      "intervalMs": 250
+    },
+    "notification": {
+      "file": "notification.json",
+      "source": "waiting",
+      "frameCount": 2,
+      "intervalMs": 600
+    },
+    "carrying": {
+      "file": "carrying.json",
+      "source": "running",
+      "frameCount": 2,
+      "intervalMs": 250
+    }
+  }
+}

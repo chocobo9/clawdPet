@@ -49,8 +49,8 @@ Claude Code hooks (stdin JSON) ──► scripts/notify.js ──► POST /api/h
 ## Demo
 
 <p align="center">
-  <video src="demovideo.mp4" autoplay loop muted playsinline controls width="720">
-    <a href="demovideo.mp4">Watch demo video</a>
+  <video src="demo_video.mp4" autoplay loop muted playsinline controls width="720">
+    <a href="demo_video.mp4">Watch demo video</a>
   </video>
 </p>
 
