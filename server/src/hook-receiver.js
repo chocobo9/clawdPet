@@ -80,7 +80,8 @@ function createHookReceiver({ config, broadcast }) {
         state: targetState,
         updatedAt: now,
         resumeState: existing.state,
-        cwd: eventData.cwd || existing.cwd
+        cwd: eventData.cwd || existing.cwd,
+        agentType: existing.agentType
       });
       broadcastStateChange(eventData);
       return;
@@ -108,6 +109,7 @@ function createHookReceiver({ config, broadcast }) {
         state: existing ? existing.state : 'idle',
         updatedAt: now,
         cwd: eventData.cwd || (existing && existing.cwd) || null,
+        agentType: eventData.agentType || (existing && existing.agentType) || null,
         resumeState: existing ? existing.resumeState : null
       });
 
@@ -120,6 +122,7 @@ function createHookReceiver({ config, broadcast }) {
       state: targetState,
       updatedAt: now,
       cwd: eventData.cwd || (existing && existing.cwd) || null,
+      agentType: eventData.agentType || (existing && existing.agentType) || null,
       resumeState: existing ? existing.resumeState : null
     });
 
@@ -143,32 +146,41 @@ function createHookReceiver({ config, broadcast }) {
     return dominant;
   }
 
-  function broadcastStateChange(eventData) {
+  function sessionMeta(eventData) {
     const sid = eventData.sessionId || 'default';
-    const cwd = eventData.cwd || (sessions.has(sid) ? sessions.get(sid).cwd : null);
+    const s = sessions.get(sid);
+    const meta = {};
+    const cwd = eventData.cwd || (s ? s.cwd : null);
+    const agentType = eventData.agentType || (s ? s.agentType : null);
+    if (cwd) meta.cwd = cwd;
+    if (agentType) meta.agentType = agentType;
+    return meta;
+  }
 
-    const data = {
-      event: eventData.event,
-      sessionId: eventData.sessionId,
-      timestamp: eventData.timestamp,
-      resolvedState: getResolvedState()
-    };
-    if (cwd) data.cwd = cwd;
-    broadcast({ type: 'task_event', data });
+  function broadcastStateChange(eventData) {
+    broadcast({
+      type: 'task_event',
+      data: {
+        event: eventData.event,
+        sessionId: eventData.sessionId,
+        timestamp: eventData.timestamp,
+        resolvedState: getResolvedState(),
+        ...sessionMeta(eventData)
+      }
+    });
   }
 
   function broadcastOneshotState(state, eventData) {
-    const sid = eventData.sessionId || 'default';
-    const cwd = eventData.cwd || (sessions.has(sid) ? sessions.get(sid).cwd : null);
-
-    const data = {
-      event: eventData.event,
-      sessionId: eventData.sessionId,
-      timestamp: eventData.timestamp,
-      resolvedState: state
-    };
-    if (cwd) data.cwd = cwd;
-    broadcast({ type: 'task_event', data });
+    broadcast({
+      type: 'task_event',
+      data: {
+        event: eventData.event,
+        sessionId: eventData.sessionId,
+        timestamp: eventData.timestamp,
+        resolvedState: state,
+        ...sessionMeta(eventData)
+      }
+    });
   }
 
   function scheduleOneshotReturn(sessionId) {

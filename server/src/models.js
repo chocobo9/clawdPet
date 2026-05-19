@@ -130,10 +130,17 @@ const EVENT_TO_STATE = Object.freeze({
   WorktreeCreate: 'carrying'
 });
 
+const AGENT_TYPES = Object.freeze([
+  'claude', 'codex', 'cursor', 'gemini', 'windsurf'
+]);
+
+const AgentTypeSchema = z.enum(AGENT_TYPES);
+
 const TaskEventSchema = z.object({
   event: HookEventNameSchema,
   sessionId: z.string().optional(),
   cwd: z.string().optional(),
+  agentType: AgentTypeSchema.optional(),
   timestamp: z.string()
 }).passthrough();
 
@@ -148,6 +155,7 @@ const WsTaskEventDataSchema = z.object({
   event: WsEventNameSchema,
   sessionId: z.string().optional(),
   cwd: z.string().optional(),
+  agentType: AgentTypeSchema.optional(),
   timestamp: z.string(),
   resolvedState: z.string().optional()
 }).passthrough();
@@ -195,6 +203,8 @@ module.exports = {
   WsTaskEventSchema,
   WsErrorSchema,
   WsMessageSchema,
+  AGENT_TYPES,
+  AgentTypeSchema,
   FIVE_HOUR_BLOCK_MS,
   SEVEN_DAY_WINDOW_MS
 };

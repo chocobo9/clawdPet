@@ -83,6 +83,22 @@ var _appExports = (function () {
     sleeping: 'idle'
   };
 
+  var AGENT_LABELS = {
+    claude: 'Claude',
+    codex: 'Codex',
+    cursor: 'Cursor',
+    gemini: 'Gemini',
+    windsurf: 'Windsurf'
+  };
+
+  var AGENT_BADGE_CLASS = {
+    claude: 'agent-claude',
+    codex: 'agent-codex',
+    cursor: 'agent-cursor',
+    gemini: 'agent-gemini',
+    windsurf: 'agent-windsurf'
+  };
+
   var ws = null;
   var retryCount = 0;
   var retryTimer = null;
@@ -165,7 +181,10 @@ var _appExports = (function () {
 
   function getDisplayName(sessionId, session) {
     if (session && session.displayName) return session.displayName;
-    if (sessionId.indexOf('process-') === 0) return 'Claude Code';
+    if (sessionId.indexOf('process-') === 0) {
+      var agent = session && session.agentType;
+      return AGENT_LABELS[agent] || 'Unknown';
+    }
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(sessionId)) {
       return sessionId.substring(0, 8);
     }
@@ -311,15 +330,22 @@ var _appExports = (function () {
       var info = document.createElement('div');
       info.className = 'session-item-info';
 
-      var name = document.createElement('div');
-      name.className = 'session-item-name';
-      name.textContent = getDisplayName(id, session);
+      var nameRow = document.createElement('div');
+      nameRow.className = 'session-item-name';
+      if (session.agentType && AGENT_LABELS[session.agentType]) {
+        var badge = document.createElement('span');
+        badge.className = 'agent-badge ' + (AGENT_BADGE_CLASS[session.agentType] || '');
+        badge.textContent = AGENT_LABELS[session.agentType];
+        nameRow.appendChild(badge);
+      }
+      var nameText = document.createTextNode(getDisplayName(id, session));
+      nameRow.appendChild(nameText);
 
       var task = document.createElement('div');
       task.className = 'session-item-task';
       task.textContent = session.message || STATE_MESSAGES[session.state] || '';
 
-      info.appendChild(name);
+      info.appendChild(nameRow);
       info.appendChild(task);
 
       var status = document.createElement('span');
@@ -605,6 +631,7 @@ var _appExports = (function () {
               event: null,
               message: STATE_MESSAGES[s.state] || 'Watching...',
               displayName: extractDirName(s.cwd),
+              agentType: s.agentType || null,
               updatedAt: s.updatedAt || Date.now()
             };
           }
@@ -779,6 +806,7 @@ var _appExports = (function () {
         event: event,
         message: EVENT_MESSAGES[event] || STATE_MESSAGES[sessionState] || 'Watching...',
         displayName: displayName,
+        agentType: data.agentType || (prevSession && prevSession.agentType) || null,
         updatedAt: Date.now()
       };
     }

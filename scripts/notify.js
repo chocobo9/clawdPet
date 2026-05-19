@@ -65,12 +65,14 @@ function readStdinJson() {
 }
 
 function buildBody(event, stdinData) {
-  const { session_id, cwd, ...rest } = stdinData;
+  const { session_id, cwd, agent_type, ...rest } = stdinData;
+  const agentType = agent_type || process.env.CLAWD_AGENT_TYPE || 'claude';
   return {
     ...rest,
     event,
     sessionId: session_id || undefined,
     cwd: cwd || undefined,
+    agentType,
     timestamp: new Date().toISOString()
   };
 }
