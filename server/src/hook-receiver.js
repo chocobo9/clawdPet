@@ -144,27 +144,31 @@ function createHookReceiver({ config, broadcast }) {
   }
 
   function broadcastStateChange(eventData) {
-    broadcast({
-      type: 'task_event',
-      data: {
-        event: eventData.event,
-        sessionId: eventData.sessionId,
-        timestamp: eventData.timestamp,
-        resolvedState: getResolvedState()
-      }
-    });
+    const sid = eventData.sessionId || 'default';
+    const cwd = eventData.cwd || (sessions.has(sid) ? sessions.get(sid).cwd : null);
+
+    const data = {
+      event: eventData.event,
+      sessionId: eventData.sessionId,
+      timestamp: eventData.timestamp,
+      resolvedState: getResolvedState()
+    };
+    if (cwd) data.cwd = cwd;
+    broadcast({ type: 'task_event', data });
   }
 
   function broadcastOneshotState(state, eventData) {
-    broadcast({
-      type: 'task_event',
-      data: {
-        event: eventData.event,
-        sessionId: eventData.sessionId,
-        timestamp: eventData.timestamp,
-        resolvedState: state
-      }
-    });
+    const sid = eventData.sessionId || 'default';
+    const cwd = eventData.cwd || (sessions.has(sid) ? sessions.get(sid).cwd : null);
+
+    const data = {
+      event: eventData.event,
+      sessionId: eventData.sessionId,
+      timestamp: eventData.timestamp,
+      resolvedState: state
+    };
+    if (cwd) data.cwd = cwd;
+    broadcast({ type: 'task_event', data });
   }
 
   function scheduleOneshotReturn(sessionId) {
@@ -253,7 +257,20 @@ function createHookReceiver({ config, broadcast }) {
     sessions.clear();
   }
 
-  return { router, getResolvedState, getSessions, cleanup, _cleanStaleSessions: cleanStaleSessions };
+  function injectEvent(eventData) {
+    const parsed = TaskEventSchema.parse({
+      ...eventData,
+      timestamp: eventData.timestamp || new Date().toISOString()
+    });
+
+    const sessionId = parsed.sessionId || 'default';
+    const targetState = EVENT_TO_STATE[parsed.event];
+    if (!targetState) return;
+
+    processEvent(parsed.event, targetState, sessionId, parsed);
+  }
+
+  return { router, getResolvedState, getSessions, cleanup, injectEvent, _cleanStaleSessions: cleanStaleSessions };
 }
 
 module.exports = { createHookReceiver };

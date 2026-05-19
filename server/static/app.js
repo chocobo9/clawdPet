@@ -165,6 +165,7 @@ var _appExports = (function () {
 
   function getDisplayName(sessionId, session) {
     if (session && session.displayName) return session.displayName;
+    if (sessionId.indexOf('process-') === 0) return 'Claude Code';
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(sessionId)) {
       return sessionId.substring(0, 8);
     }

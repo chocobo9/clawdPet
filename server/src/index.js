@@ -8,6 +8,7 @@ const { createWebSocketHub } = require('./websocket-hub.js');
 const { createHookReceiver } = require('./hook-receiver.js');
 const { createUsagePoller } = require('./usage-poller.js');
 const { createSpriteManager } = require('./sprite-manager.js');
+const { createProcessDetector } = require('./process-detector.js');
 
 const config = loadConfig();
 
@@ -28,6 +29,11 @@ const usagePoller = createUsagePoller({
 
 const spriteManager = createSpriteManager({
   skinsDir: path.join(__dirname, '..', 'skins')
+});
+
+const processDetector = createProcessDetector({
+  injectEvent: hookReceiver.injectEvent,
+  getSessions: hookReceiver.getSessions
 });
 
 app.use((_req, res, next) => {
@@ -86,10 +92,12 @@ app.get('/api/sessions', (_req, res) => {
 server.listen(config.port, config.host, () => {
   console.log(`[clawd-pet] Server listening on ${config.host}:${config.port}`);
   usagePoller.start();
+  processDetector.start();
 });
 
 function shutdown() {
   console.log('[clawd-pet] Shutting down...');
+  processDetector.stop();
   usagePoller.stop();
   hookReceiver.cleanup();
   wsHub.cleanup();
