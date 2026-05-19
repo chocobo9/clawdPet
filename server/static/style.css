@@ -35,20 +35,21 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---- Dashboard Grid (portrait default) ---- */
+/* ---- Dashboard Grid (landscape only) ---- */
 
 .dashboard {
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
   height: 100%;
-  padding: 12px;
+  padding: 10px 16px;
   gap: 10px;
 }
 
 /* ---- Top Bar ---- */
 
 .top-bar {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -226,6 +227,8 @@ body {
 /* ---- Pet Area ---- */
 
 .pet-area {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -272,11 +275,13 @@ body {
 /* ---- Usage Area ---- */
 
 .usage-area {
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   gap: 20px;
   justify-content: center;
-  padding: 0 4px;
+  padding: 0 12px;
   overflow-y: auto;
 }
 
@@ -377,6 +382,7 @@ body {
 /* ---- Bottom Bar ---- */
 
 .bottom-bar {
+  grid-column: 1 / -1;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -513,59 +519,4 @@ body {
   color: var(--text-secondary);
 }
 
-/* ---- Landscape ---- */
-
-@media (orientation: landscape) {
-  .dashboard {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto 1fr auto;
-    padding: 10px 16px;
-    gap: 10px;
-  }
-
-  .top-bar {
-    grid-column: 1 / -1;
-  }
-
-  .pet-area {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .usage-area {
-    grid-column: 2;
-    grid-row: 2;
-    padding: 0 12px;
-  }
-
-  .bottom-bar {
-    grid-column: 1 / -1;
-  }
-}
-
-/* ---- Narrow screens ---- */
-
-@media (max-width: 360px) {
-  .dashboard {
-    padding: 8px;
-    gap: 6px;
-  }
-
-  .clock-time {
-    font-size: 24px;
-  }
-
-  .section-title {
-    font-size: 15px;
-  }
-
-  .bar-value {
-    font-size: 15px;
-    min-width: 40px;
-  }
-
-  .bar-label {
-    min-width: 45px;
-    font-size: 13px;
-  }
-}
+/* (portrait and narrow-screen queries removed — app is landscape-only) */
