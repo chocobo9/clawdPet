@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">clawdPet</h1>
   <p align="center">
-    Turn an old phone into a desktop pixel pet + Claude usage monitor + task notification ringer.
+    Turn an old phone into a desktop pixel pet + AI coding agent monitor + task notification ringer.
   </p>
 </p>
 
@@ -31,18 +31,22 @@
 └──────────────────────────────────┘                   └───────────────────────────────┘
 
 Claude Code hooks (stdin JSON) ──► scripts/notify.js ──► POST /api/hook ──► state machine ──► WS broadcast
+Other agents (Codex, Cursor, …) ──► POST /api/hook { agentType: "codex" } ──────────────┘
+ProcessDetector (tasklist poll)  ──► auto-detect claude/codex/cursor/gemini/windsurf ────┘
 ```
 
 ## Features
 
+- **Multi-agent support** — monitors Claude Code, Codex, Cursor, Gemini, and Windsurf simultaneously with per-agent colored badges
+- **Process detection fallback** — auto-detects running AI agent processes even without hooks installed
 - **Pixel desktop pet** with state-driven animations (idle, working, thinking, sleeping, etc.)
 - **Claude usage monitoring** — session and weekly usage bars with countdown timers
 - **Task notifications** — configurable per-event ringtone (permission vs finished), adjustable vibration intensity, 5s auto-stop
 - **Claude Code hooks** — automatic 15-event hook registration, real-time state updates
 - **Custom skins** — tap the pet to open skin picker; upload sprites or convert .ani cursor files
-- **Session selector** — capsule dropdown showing all active sessions with state/message
+- **Session selector** — capsule dropdown showing all active sessions with agent type, state, and message
 - **Boot auto-start** — optional automatic launch on phone reboot
-- **Multi-session aware** — tracks multiple Claude sessions, resolves dominant state by priority
+- **Multi-session aware** — tracks multiple agent sessions, resolves dominant state by priority
 - **Subagent tracking** — juggling animation when subagents are active
 - **Oneshot events** — brief error/notification/attention states that auto-revert
 
@@ -100,6 +104,36 @@ node scripts/install-hooks.js --uninstall
 3. On first launch, long-press back button → Settings → enter `http://<your-LAN-IP>:9870`
 4. Configure notification sounds, vibration intensity, and boot auto-start in the same Settings page
 
+## Multi-Agent Support
+
+clawdPet can monitor multiple AI coding agents simultaneously:
+
+| Agent | Process Detection | Hook Support |
+|-------|:-:|:-:|
+| Claude Code | claude.exe | Built-in (`install-hooks.js`) |
+| OpenAI Codex | codex.exe | POST to `/api/hook` with `agentType: "codex"` |
+| Cursor | Cursor.exe | POST to `/api/hook` with `agentType: "cursor"` |
+| Gemini CLI | gemini.exe | POST to `/api/hook` with `agentType: "gemini"` |
+| Windsurf | Windsurf.exe | POST to `/api/hook` with `agentType: "windsurf"` |
+
+**Process detection** works out of the box — the server polls for known agent processes every 15 seconds and creates sessions automatically. No hooks required.
+
+**Hook-based integration** gives richer state info (thinking, working, error, etc.). For non-Claude agents, POST events to the hook endpoint:
+
+```bash
+curl -X POST http://localhost:9870/api/hook \
+  -H "Content-Type: application/json" \
+  -d '{"event":"SessionStart","agentType":"codex","sessionId":"my-session","timestamp":"2026-01-01T00:00:00Z"}'
+```
+
+Or reuse `notify.js` with the `CLAWD_AGENT_TYPE` env var:
+
+```bash
+CLAWD_AGENT_TYPE=codex node scripts/notify.js SessionStart
+```
+
+Each agent gets a colored badge in the session dropdown (purple for Claude, green for Codex, blue for Cursor, yellow for Gemini, teal for Windsurf).
+
 ## Configuration
 
 Config file: `~/.clawd-phone/config.json` (auto-created on first run)
@@ -127,6 +161,7 @@ clawdPet/
 │   │   ├── models.js           # Zod schemas, state machine, event maps
 │   │   ├── usage-poller.js     # Claude usage API polling
 │   │   ├── hook-receiver.js    # Hook event processing + state machine
+│   │   ├── process-detector.js # Auto-detect running AI agent processes
 │   │   ├── websocket-hub.js    # WebSocket connection management
 │   │   ├── sprite-manager.js   # Custom skin upload + management
 │   │   └── default-pet-data.js # Built-in pixel pet sprite data
@@ -182,10 +217,11 @@ clawdPet/
 
 ### Hooks don't seem to fire
 
-1. Verify hooks are installed: check `~/.claude/settings.json` for `clawdpet` entries
-2. Re-run `node scripts/install-hooks.js` to reinstall
-3. Check that the config at `~/.clawd-phone/config.json` has the correct server address
-4. Test manually: `echo '{"session_id":"test"}' | node scripts/notify.js SessionStart`
+1. Even without hooks, the server auto-detects running agent processes — check if your agent shows up as a process-detected session
+2. Verify hooks are installed: check `~/.claude/settings.json` for `clawdpet` entries
+3. Re-run `node scripts/install-hooks.js` to reinstall
+4. Check that the config at `~/.clawd-phone/config.json` has the correct server address
+5. Test manually: `echo '{"session_id":"test"}' | node scripts/notify.js SessionStart`
 
 ### How do I add a custom skin?
 
